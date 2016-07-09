@@ -22,6 +22,7 @@ Just run it with -h switch.
                               [--images-path IMAGESPATH]
                               [--images-url-path IMAGESURLPATH]
                               [--no-image-folders] [--use-draft-mode]
+                              [--replace-links]
 
 	Tumblr to Hugo Markdown downloader
 
@@ -47,9 +48,13 @@ Just run it with -h switch.
 	  --use-draft-mode      The created Hugo Markdown files will be set to
 	                        draft=false by default. Specify this argument if you
 	                        want to create them in draft mode.
+	  --replace-links       If your current posts link to other posts within your
+	                        Tumblr blog, this will attempt to replace them with
+	                        the correct Markdown file, using Hugo's relref.
 
 	This app downloads all your Tumblr content into Markdown files that are
 	suitable for processing with Hugo. Optionally also downloads the images hosted
 	on Tumblr and replaces their URLs with locally hosted versions.
+	ysoh-mn1:tumblr2markdown ysoh$
 
 You will need a Tumblr API key, which you can get by [registering a Tumblr application.](http://www.tumblr.com/oauth/apps) Get the value called called “OAuth Consumer Key”.

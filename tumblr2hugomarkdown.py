@@ -47,14 +47,46 @@ def processPostBodyForImages(postBody, imagesPath, imagesUrlPath):
 
 	return postBody
 
-def processAllPostUrls(apiKey):
+def mapUrlsToFiles(apiKey, host):
+	# Authenticate via API Key
 	client = pytumblr.TumblrRestClient(apiKey)
 	processed = 0
 	total_posts = 1
-	posts_per_type = {}
+	url_mapping = {}
+
+	while processed < total_posts:
+		response = client.posts(host, limit=20, offset=processed, filter='raw')
+		total_posts = response['total_posts']
+		posts = response['posts']
+		processed += len(posts)
+
+		for post in posts:
+			postDate = datetime.strptime(post["date"], "%Y-%m-%d %H:%M:%S %Z")
+
+			if post['type'] == 'text':
+				title = post["title"]
+			# Ignore other post types for now
+			else:
+				continue
+
+			# Generate a slug out of the title: replace weird characters …
+			slug = re.sub('[^0-9a-zA-Z- ]', '', title.lower().strip())
+
+			# … collapse spaces …
+			slug = re.sub(' +', ' ', slug)
+
+			# … convert spaces to tabs …
+			slug = slug.replace(' ', '-')
+
+			# … and prepend date
+			slug = postDate.strftime("%Y-%m-%d-") + slug
+
+			url_mapping[post["post_url"]] = "{{< relref \"" + slug + ".md\" >}}"
+
+	return url_mapping
 
 
-def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath, noImagesFolders, drafts):
+def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath, noImagesFolders, drafts, replaceLinks):
 	# Authenticate via API Key
 	client = pytumblr.TumblrRestClient(apiKey)
 
@@ -70,7 +102,8 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 	markdown_maker.unicode_snob = 1
 	markdown_maker.mark_code = 1
 
-	url_mapping = {}
+	if replaceLinks:
+		url_mapping = mapUrlsToFiles(apiKey, host)
 
 	while processed < total_posts:
 		response = client.posts(host, limit=20, offset=processed, filter='raw')
@@ -94,7 +127,7 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 				body = markdown_maker.handle(post["body"]) # Convert HTML body to Markdown
 			# Ignore other post types for now
 			else:
-				break
+				continue
 
 			"""
 			# Ignore other post types for now
@@ -140,6 +173,10 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 				else:
 					body = processPostBodyForImages(body, imagesPath + "/" + slug, imagesUrlPath + "/" + slug)
 
+			if replaceLinks:
+				for key, value in url_mapping.iteritems():
+					body = body.replace(key, value)
+
 			# We have completely processed the post and the Markdown is ready to be output
 
 			# If path does not exist, make it
@@ -147,8 +184,6 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 				os.makedirs(postsPath)
 
 			f = codecs.open(findFileName(postsPath, slug), encoding='utf-8', mode="w")
-
-			url_mapping[post["post_url"]] = "{{< relref \"" + slug + ".md\" >}}"
 
 			tags = ""
 			if len(post["tags"]):
@@ -166,7 +201,6 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 
 	print "Only text posts were converted into Hugo Markdown, the other types are skipped!"
 	print "Posts per type:", posts_per_type
-	print url_mapping
 
 def findFileName(path, slug):
 	"""Make sure the file doesn't already exist"""
@@ -195,6 +229,7 @@ def main():
 	parser.add_argument('--images-url-path', dest="imagesUrlPath", default="/img", help="If downloading images, this is the URL path where they are stored at, by default “/img”")
 	parser.add_argument('--no-image-folders', dest="noImagesFolders", action="store_true", help="The images will be sorted into individual folders with the folder names set to the matching Mardown file names by default. Specify this argument if you do not want them to be sorted.")
 	parser.add_argument('--use-draft-mode', dest="drafts",  action="store_true", help="The created Hugo Markdown files will be set to draft=false by default. Specify this argument if you want to create them in draft mode.")
+	parser.add_argument('--replace-links', dest="replaceLinks",  action="store_true", help="If your current posts link to other posts within your Tumblr blog, this will attempt to replace them with the correct Markdown file, using Hugo's relref.")
 
 	args = parser.parse_args()
 
@@ -206,7 +241,7 @@ def main():
 		print "Tumblr host name is required."
 		exit(0)
 
-	downloader(args.apiKey, args.host, args.postsPath, args.downloadImages, args.imagesPath, args.imagesUrlPath, args.noImagesFolders, args.drafts)
+	downloader(args.apiKey, args.host, args.postsPath, args.downloadImages, args.imagesPath, args.imagesUrlPath, args.noImagesFolders, args.drafts, args.replaceLinks)
 
 if __name__ == "__main__":
     main()
