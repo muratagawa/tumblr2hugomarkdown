@@ -25,8 +25,6 @@ Just run it with -h switch.
 
 	Tumblr to Hugo Markdown downloader
 
-	Tumblr to Hugo Markdown downloader
-
 	optional arguments:
 	  -h, --help            show this help message and exit
 	  --apikey APIKEY       Tumblr API key
