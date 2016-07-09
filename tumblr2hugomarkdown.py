@@ -47,7 +47,7 @@ def processPostBodyForImages(postBody, imagesPath, imagesUrlPath):
 
 	return postBody
 
-def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath, drafts):
+def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath, noImagesFolders, drafts):
 	# Authenticate via API Key
 	client = pytumblr.TumblrRestClient(apiKey)
 
@@ -112,12 +112,6 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 				print post
 			"""
 
-			# Download images if requested
-			if downloadImages:
-				body = processPostBodyForImages(body, imagesPath, imagesUrlPath)
-
-			# We have completely processed the post and the Markdown is ready to be output
-
 			# Generate a slug out of the title: replace weird characters …
 			slug = re.sub('[^0-9a-zA-Z- ]', '', title.lower().strip())
 
@@ -129,6 +123,15 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 
 			# … and prepend date
 			slug = postDate.strftime("%Y-%m-%d-") + slug
+
+			# Download images if requested
+			if downloadImages:
+				if (noImagesFolders):
+					body = processPostBodyForImages(body, imagesPath, imagesUrlPath)
+				else:
+					body = processPostBodyForImages(body, imagesPath + "/" + slug, imagesUrlPath + "/" + slug)
+
+			# We have completely processed the post and the Markdown is ready to be output
 
 			# If path does not exist, make it
 			if not os.path.exists(postsPath):
@@ -168,17 +171,18 @@ def makeFileName(path, slug, exists = 0):
 	return os.path.join(path, slug) + suffix + ".md"
 
 def main():
-	parser = argparse.ArgumentParser(description="Tumblr to Markdown downloader",
+	parser = argparse.ArgumentParser(description="Tumblr to Hugo Markdown downloader",
 		epilog = """
-		This app downloads all your Tumblr content into Markdown files that are suitable for processing with Octopress. Optionally also downloads the images hosted on Tumblr and replaces their URLs with locally hosted versions.
+		This app downloads all your Tumblr content into Markdown files that are suitable for processing with Hugo. Optionally also downloads the images hosted on Tumblr and replaces their URLs with locally hosted versions.
 		""")
 	parser.add_argument('--apikey', dest="apiKey", required=True, help="Tumblr API key")
 	parser.add_argument('--host', dest="host", required=True, help="Tumblr site host, e.g example.tumblr.com")
-	parser.add_argument('--posts-path', dest="postsPath", default="_posts", help="Output path for posts, by default “_posts”")
+	parser.add_argument('--posts-path', dest="postsPath", default="output/content/posts", help="Output path for posts, by default “output/content/posts”")
 	parser.add_argument('--download-images', dest="downloadImages", action="store_true", help="Whether to download images hosted on Tumblr into a local folder, and replace their URLs in posts")
-	parser.add_argument('--images-path', dest="imagesPath", default="images", help="If downloading images, store them to this local path, by default “images”")
-	parser.add_argument('--images-url-path', dest="imagesUrlPath", default="/images", help="If downloading images, this is the URL path where they are stored at, by default “/images”")
-	parser.add_argument('--drafts', dest="drafts", required=False, default=True, help="The created Hugo Markdown files will be set to draft=false by default. Set it to true if you want the posts to be in draft mode first.")
+	parser.add_argument('--images-path', dest="imagesPath", default="output/static/img", help="If downloading images, store them to this local path, by default “output/static/img”")
+	parser.add_argument('--images-url-path', dest="imagesUrlPath", default="/img", help="If downloading images, this is the URL path where they are stored at, by default “/img”")
+	parser.add_argument('--no-image-folders', dest="noImagesFolders", action="store_true", help="The images will be sorted into individual folders with the folder names set to the matching Mardown file names by default. Specify this argument if you do not want them to be sorted.")
+	parser.add_argument('--use-draft-mode', dest="drafts",  action="store_true", help="The created Hugo Markdown files will be set to draft=false by default. Specify this argument if you want to create them in draft mode.")
 
 	args = parser.parse_args()
 
@@ -190,7 +194,7 @@ def main():
 		print "Tumblr host name is required."
 		exit(0)
 
-	downloader(args.apiKey, args.host, args.postsPath, args.downloadImages, args.imagesPath, args.imagesUrlPath, args.drafts)
+	downloader(args.apiKey, args.host, args.postsPath, args.downloadImages, args.imagesPath, args.imagesUrlPath, args.noImagesFolders, args.drafts)
 
 if __name__ == "__main__":
     main()
