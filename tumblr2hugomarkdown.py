@@ -47,6 +47,13 @@ def processPostBodyForImages(postBody, imagesPath, imagesUrlPath):
 
 	return postBody
 
+def processAllPostUrls(apiKey):
+	client = pytumblr.TumblrRestClient(apiKey)
+	processed = 0
+	total_posts = 1
+	posts_per_type = {}
+
+
 def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath, noImagesFolders, drafts):
 	# Authenticate via API Key
 	client = pytumblr.TumblrRestClient(apiKey)
@@ -62,6 +69,8 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 	markdown_maker.body_width = 0
 	markdown_maker.unicode_snob = 1
 	markdown_maker.mark_code = 1
+
+	url_mapping = {}
 
 	while processed < total_posts:
 		response = client.posts(host, limit=20, offset=processed, filter='raw')
@@ -139,6 +148,8 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 
 			f = codecs.open(findFileName(postsPath, slug), encoding='utf-8', mode="w")
 
+			url_mapping[post["post_url"]] = "{{< relref \"" + slug + ".md\" >}}"
+
 			tags = ""
 			if len(post["tags"]):
 				tags = "[" + '"{0}"'.format('", "'.join(post["tags"])) + "]"
@@ -155,6 +166,7 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 
 	print "Only text posts were converted into Hugo Markdown, the other types are skipped!"
 	print "Posts per type:", posts_per_type
+	print url_mapping
 
 def findFileName(path, slug):
 	"""Make sure the file doesn't already exist"""
