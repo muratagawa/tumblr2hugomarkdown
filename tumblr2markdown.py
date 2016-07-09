@@ -9,16 +9,12 @@ import codecs
 import argparse
 import hashlib # for image URL->path hashing
 import urllib2 # for image downloading
-
-
+import html2text # to convert body HTML to Markdown
 
 def processPostBodyForImages(postBody, imagesPath, imagesUrlPath):
-
 	tumblrImageUrl = re.compile(r"https?://[0-z.]+tumblr\.com/[0-z_/]+(\.jpe?g|\.png|\.gif)")
 
 	while True:
-
-		# Coding pattern recommended by http://docs.python.org/2/faq/design.html#why-can-t-i-use-an-assignment-in-an-expression
 		imageMatch = re.search(tumblrImageUrl, postBody)
 		if not imageMatch:
 			break
@@ -36,15 +32,11 @@ def processPostBodyForImages(postBody, imagesPath, imagesUrlPath):
 
 		# Assumes that all images are downloaded in full by httpclient, does not check for file integrity
 		if os.path.exists(concreteImagePath):
-
 			# This image was already downloaded, so just replace the URL in body
-
 			postBody = postBody.replace(concreteImageUrl, imageOutputUrlPath)
 			print "Found image url", concreteImageUrl, "already downloaded to path", concreteImagePath
 		else:
-
 			# Download the image and then replace the URL in body
-
 			imageContent = urllib2.urlopen(concreteImageUrl).read()
 			f = open(concreteImagePath, 'wb')
 			f.write(imageContent)
@@ -55,21 +47,21 @@ def processPostBodyForImages(postBody, imagesPath, imagesUrlPath):
 
 	return postBody
 
-
-
-def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath):
-
+def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath, drafts):
 	# Authenticate via API Key
 	client = pytumblr.TumblrRestClient(apiKey)
 
 	# http://www.tumblr.com/docs/en/api/v2#posts
 
 	# Make the request
-
 	processed = 0
 	total_posts = 1
-
 	posts_per_type = {}
+
+	markdown_maker = html2text.HTML2Text()
+	markdown_maker.body_width = 0
+	markdown_maker.unicode_snob = 1
+	markdown_maker.mark_code = 1
 
 	while processed < total_posts:
 		response = client.posts(host, limit=20, offset=processed, filter='raw')
@@ -89,42 +81,36 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 			postDate = datetime.strptime(post["date"], "%Y-%m-%d %H:%M:%S %Z")
 
 			if post['type'] == 'text':
-
 				title = post["title"]
-				body = post["body"]
+				body = markdown_maker.handle(post["body"]) # Convert HTML body to Markdown
+			# Ignore other post types for now
+			else:
+				break
 
+			"""
+			# Ignore other post types for now
 			elif post["type"] == "photo":
 				title = "Photo post"
 				body = "{% img " + post["photos"][0]["original_size"]["url"] + " %}\n\n" + post["caption"]
-
 			elif post["type"] == "video":
 				title = "Video post"
-
 				# Grab the widest embed code
-
 				known_width = 0
 				for player in post["player"]:
 					if player["width"] > known_width:
 						player_code = player["embed_code"]
-
 				body = str(player_code) + "\n\n" + post["caption"]
-
 			elif post["type"] == "link":
 				title = "Link post"
-
 				body = "<" + post["url"] + ">\n\n" + post["description"]
-
 			elif post["type"] == "quote":
-
 				title = "Quote post"
-
 				body = post["source"] + "\n\n<blockquote>" + post["text"] + "</blockquote>"
-
 			else:
 				title = "(unknown post type)"
 				body = "missing body"
-
 				print post
+			"""
 
 			# Download images if requested
 			if downloadImages:
@@ -152,17 +138,20 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 
 			tags = ""
 			if len(post["tags"]):
-				tags = "\ntags:\n- " + "\n- ".join(post["tags"])
+				tags = "[" + '"{0}"'.format('", "'.join(post["tags"])) + "]"
 
-			f.write("---\nlayout: post\ndate: " + post["date"] + tags + "\ntitle: \"" + title.replace('"', '\\"') + "\"\n---\n" + body)
+			draft = "false"
+			if drafts:
+				draft = "true"
+
+			f.write("+++\ndate = \"" + postDate.strftime('%Y-%m-%dT%H:%M:%S%z+00:00') + "\"\ndraft = " + draft + "\ntags = " + tags + "\ntitle = \"" + title.replace('"', '\\"') + "\"\n+++\n" + body)
 
 			f.close()
 
 		print "Processed", processed, "out of", total_posts, "posts"
 
+	print "Only text posts were converted into Hugo Markdown, the other types are skipped!"
 	print "Posts per type:", posts_per_type
-
-
 
 def findFileName(path, slug):
 	"""Make sure the file doesn't already exist"""
@@ -174,16 +163,11 @@ def findFileName(path, slug):
 	print "ERROR: Too many clashes trying to create filename " +  makeFileName(path, slug)
 	exit()
 
-
-
 def makeFileName(path, slug, exists = 0):
 	suffix = "" if exists == 0 else "-" + str(exists + 1)
-	return os.path.join(path, slug) + suffix + ".markdown"
-
-
+	return os.path.join(path, slug) + suffix + ".md"
 
 def main():
-	
 	parser = argparse.ArgumentParser(description="Tumblr to Markdown downloader",
 		epilog = """
 		This app downloads all your Tumblr content into Markdown files that are suitable for processing with Octopress. Optionally also downloads the images hosted on Tumblr and replaces their URLs with locally hosted versions.
@@ -194,6 +178,7 @@ def main():
 	parser.add_argument('--download-images', dest="downloadImages", action="store_true", help="Whether to download images hosted on Tumblr into a local folder, and replace their URLs in posts")
 	parser.add_argument('--images-path', dest="imagesPath", default="images", help="If downloading images, store them to this local path, by default “images”")
 	parser.add_argument('--images-url-path', dest="imagesUrlPath", default="/images", help="If downloading images, this is the URL path where they are stored at, by default “/images”")
+	parser.add_argument('--drafts', dest="drafts", required=False, default=True, help="The created Hugo Markdown files will be set to draft=false by default. Set it to true if you want the posts to be in draft mode first.")
 
 	args = parser.parse_args()
 
@@ -205,9 +190,7 @@ def main():
 		print "Tumblr host name is required."
 		exit(0)
 
-	downloader(args.apiKey, args.host, args.postsPath, args.downloadImages, args.imagesPath, args.imagesUrlPath)
-
-
+	downloader(args.apiKey, args.host, args.postsPath, args.downloadImages, args.imagesPath, args.imagesUrlPath, args.drafts)
 
 if __name__ == "__main__":
     main()
