@@ -16,7 +16,7 @@ Requires [py2tumblr](https://github.com/tumblr/pytumblr) and [html2text](https:/
 ## How to Use
 Just run it with -h switch.
 
-	ysoh-mbp:tumblr2hugomarkdown jaanus$ ./tumblr2hugomarkdown.py -h
+	ycsoh-mbp:tumblr2hugomarkdown ycsoh$ ./tumblr2hugomarkdown.py -h
 	usage: tumblr2hugomarkdown.py [-h] --apikey APIKEY --host HOST
                               [--posts-path POSTSPATH] [--download-images]
                               [--images-path IMAGESPATH]
