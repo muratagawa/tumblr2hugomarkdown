@@ -149,7 +149,7 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 					body = str(player_code) + "\n\n" + post["caption"]
 				elif post["type"] == "link":
 					title = "Link post"
-					body = "<" + post["url"] + ">\n\n" + post["description"]
+					body = post["url"] + "\n" + markdown_maker.handle(post["description"])
 				elif post["type"] == "quote":
 					title = "Quote post"
 					body = post["source"] + "\n\n<blockquote>" + post["text"] + "</blockquote>"
