@@ -86,7 +86,7 @@ def mapUrlsToFiles(apiKey, host):
 	return url_mapping
 
 
-def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath, noImagesFolders, drafts, replaceLinks):
+def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPath, noImagesFolders, drafts, replaceLinks, allPostTypes, keepReblog):
 	# Authenticate via API Key
 	client = pytumblr.TumblrRestClient(apiKey)
 
@@ -94,6 +94,7 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 
 	# Make the request
 	processed = 0
+	converted = 0
 	total_posts = 1
 	posts_per_type = {}
 
@@ -106,7 +107,10 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 		url_mapping = mapUrlsToFiles(apiKey, host)
 
 	while processed < total_posts:
-		response = client.posts(host, limit=20, offset=processed, filter='raw')
+		if keepReblog:
+			response = client.posts(host, limit=20, offset=processed, filter='raw')
+		else:
+			response = client.posts(host, limit=20, offset=processed, filter='raw', reblog_info='true')
 		total_posts = response['total_posts']
 		posts = response['posts']
 		processed += len(posts)
@@ -114,6 +118,9 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 		print "Processing..."
 		for post in posts:
 			print "	http://" + host + "/post/" + str(post["id"])
+
+			if 'reblogged_from_id' in post and keepReblog is False:
+				continue
 
 			try:
 				posts_per_type[post['type']] += 1
@@ -125,34 +132,31 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 			if post['type'] == 'text':
 				title = post["title"]
 				body = markdown_maker.handle(post["body"]) # Convert HTML body to Markdown
-			# Ignore other post types for now
-			else:
+			# If type is not text and allPostTypes is False
+			elif allPostTypes is False:
 				continue
-
-			"""
-			# Ignore other post types for now
-			elif post["type"] == "photo":
-				title = "Photo post"
-				body = "{% img " + post["photos"][0]["original_size"]["url"] + " %}\n\n" + post["caption"]
-			elif post["type"] == "video":
-				title = "Video post"
-				# Grab the widest embed code
-				known_width = 0
-				for player in post["player"]:
-					if player["width"] > known_width:
-						player_code = player["embed_code"]
-				body = str(player_code) + "\n\n" + post["caption"]
-			elif post["type"] == "link":
-				title = "Link post"
-				body = "<" + post["url"] + ">\n\n" + post["description"]
-			elif post["type"] == "quote":
-				title = "Quote post"
-				body = post["source"] + "\n\n<blockquote>" + post["text"] + "</blockquote>"
 			else:
-				title = "(unknown post type)"
-				body = "missing body"
-				print post
-			"""
+				if post["type"] == "photo":
+					title = "Photo post"
+					body = "{% img " + post["photos"][0]["original_size"]["url"] + " %}\n\n" + post["caption"]
+				elif post["type"] == "video":
+					title = "Video post"
+					# Grab the widest embed code
+					known_width = 0
+					for player in post["player"]:
+						if player["width"] > known_width:
+							player_code = player["embed_code"]
+					body = str(player_code) + "\n\n" + post["caption"]
+				elif post["type"] == "link":
+					title = "Link post"
+					body = "<" + post["url"] + ">\n\n" + post["description"]
+				elif post["type"] == "quote":
+					title = "Quote post"
+					body = post["source"] + "\n\n<blockquote>" + post["text"] + "</blockquote>"
+				else:
+					title = "(unknown post type)"
+					body = "missing body"
+					print post
 
 			# Generate a slug out of the title: replace weird characters …
 			slug = re.sub('[^0-9a-zA-Z- ]', '', title.lower().strip())
@@ -197,9 +201,11 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 
 			f.close()
 
-		print "Processed", processed, "out of", total_posts, "posts"
+			converted += 1
 
-	print "Only text posts were converted into Hugo Markdown, the other types are skipped!"
+		print "Processed", processed, "out of", total_posts, "posts"
+		print "Converted", converted, "out of", total_posts, "posts"
+
 	print "Posts per type:", posts_per_type
 
 def findFileName(path, slug):
@@ -230,6 +236,8 @@ def main():
 	parser.add_argument('--no-image-folders', dest="noImagesFolders", action="store_true", help="The images will be sorted into individual folders with the folder names set to the matching Mardown file names by default. Specify this argument if you do not want them to be sorted.")
 	parser.add_argument('--use-draft-mode', dest="drafts",  action="store_true", help="The created Hugo Markdown files will be set to draft=false by default. Specify this argument if you want to create them in draft mode.")
 	parser.add_argument('--replace-links', dest="replaceLinks",  action="store_true", help="If your current posts link to other posts within your Tumblr blog, this will attempt to replace them with the correct Markdown file, using Hugo's relref.")
+	parser.add_argument('--all-post-types', dest="allPostTypes",  action="store_true", help="By default, this script only converts Tumblr posts marked as “text” type. You can use this argument if you want to convert all other posts type.")
+	parser.add_argument('--keep-reblogs', dest="keepReblog",  action="store_true", help="By default, this script will skip all reblogs. You can use this argument if you want to convert/keep reblogs.")
 
 	args = parser.parse_args()
 
@@ -241,7 +249,7 @@ def main():
 		print "Tumblr host name is required."
 		exit(0)
 
-	downloader(args.apiKey, args.host, args.postsPath, args.downloadImages, args.imagesPath, args.imagesUrlPath, args.noImagesFolders, args.drafts, args.replaceLinks)
+	downloader(args.apiKey, args.host, args.postsPath, args.downloadImages, args.imagesPath, args.imagesUrlPath, args.noImagesFolders, args.drafts, args.replaceLinks, args.allPostTypes, args.keepReblog)
 
 if __name__ == "__main__":
     main()
