@@ -152,7 +152,7 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 					body = post["url"] + "\n" + markdown_maker.handle(post["description"])
 				elif post["type"] == "quote":
 					title = "Quote post"
-					body = post["source"] + "\n\n<blockquote>" + post["text"] + "</blockquote>"
+					body = post["source"] + "\n> " + post["text"]
 				else:
 					title = "(unknown post type)"
 					body = "missing body"
