@@ -10,6 +10,41 @@ import argparse
 import hashlib # for image URL->path hashing
 import urllib2 # for image downloading
 import html2text # to convert body HTML to Markdown
+from bs4 import BeautifulSoup
+
+# Source: https://gist.github.com/kmonsoor/2a1afba4ee127cce50a0
+def get_yt_video_id(url):
+    """Returns Video_ID extracting from the given url of Youtube
+
+    Examples of URLs:
+      Valid:
+        'http://youtu.be/_lOT2p_FCvA',
+        'www.youtube.com/watch?v=_lOT2p_FCvA&feature=feedu',
+        'http://www.youtube.com/embed/_lOT2p_FCvA',
+        'http://www.youtube.com/v/_lOT2p_FCvA?version=3&amp;hl=en_US',
+        'https://www.youtube.com/watch?v=rTHlyTphWP0&index=6&list=PLjeDyYvG6-40qawYNR4juzvSOg-ezZ2a6',
+        'youtube.com/watch?v=_lOT2p_FCvA',
+
+      Invalid:
+        'youtu.be/watch?v=_lOT2p_FCvA',
+    """
+
+    from urlparse import urlparse, parse_qs
+
+    if url.startswith(('youtu', 'www')):
+        url = 'http://' + url
+
+    query = urlparse(url)
+
+    if 'youtube' in query.hostname:
+        if query.path == '/watch':
+            return parse_qs(query.query)['v'][0]
+        elif query.path.startswith(('/embed/', '/v/')):
+            return query.path.split('/')[2]
+    elif 'youtu.be' in query.hostname:
+        return query.path[1:]
+    else:
+        raise ValueError
 
 def processPostBodyForImages(postBody, imagesPath, imagesUrlPath):
 	tumblrImageUrl = re.compile(r"https?://[0-z.]+tumblr\.com/[0-z_/]+(\.jpe?g|\.png|\.gif)")
@@ -138,21 +173,28 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 			else:
 				if post["type"] == "photo":
 					title = "Photo post"
-					body = "[image](" + post["photos"][0]["original_size"]["url"] + ")\n" + markdown_maker.handle(post["caption"])
+					body = "[image](" + post["photos"][0]["original_size"]["url"] + ")\n\n" + markdown_maker.handle(post["caption"])
 				elif post["type"] == "video":
 					title = "Video post"
-					# Grab the widest embed code
 					known_width = 0
+					player_code = None
+					# Grab the widest embed code
 					for player in post["player"]:
 						if player["width"] > known_width:
 							player_code = player["embed_code"]
-					body = str(player_code) + "\n\n" + post["caption"]
+					try:
+						soup = BeautifulSoup(player_code, "html.parser")
+						sources=soup.findAll('iframe',{"src":True})
+						body = "{{< youtube " + get_yt_video_id(sources[0]['src']) + " >}}" + "\n\n" + markdown_maker.handle(post["caption"])
+					except ValueError:
+						# If not YouTube
+						body = str(player_code) + "\n\n" + markdown_maker.handle(post["caption"])
 				elif post["type"] == "link":
 					title = "Link post"
-					body = post["url"] + "\n" + markdown_maker.handle(post["description"])
+					body = post["url"] + "\n\n" + markdown_maker.handle(post["description"])
 				elif post["type"] == "quote":
 					title = "Quote post"
-					body = post["source"] + "\n> " + post["text"]
+					body = post["source"] + "\n\n> " + post["text"]
 				else:
 					title = "(unknown post type)"
 					body = "missing body"
