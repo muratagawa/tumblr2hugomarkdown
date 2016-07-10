@@ -138,7 +138,7 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 			else:
 				if post["type"] == "photo":
 					title = "Photo post"
-					body = "{% img " + post["photos"][0]["original_size"]["url"] + " %}\n\n" + post["caption"]
+					body = "[image](" + post["photos"][0]["original_size"]["url"] + ")\n" + markdown_maker.handle(post["caption"])
 				elif post["type"] == "video":
 					title = "Video post"
 					# Grab the widest embed code
