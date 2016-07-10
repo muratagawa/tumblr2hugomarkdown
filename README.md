@@ -22,7 +22,8 @@ Just run it with -h switch.
                               [--images-path IMAGESPATH]
                               [--images-url-path IMAGESURLPATH]
                               [--no-image-folders] [--use-draft-mode]
-                              [--replace-links]
+                              [--replace-links] [--all-post-types]
+                              [--keep-reblogs]
 
 	Tumblr to Hugo Markdown downloader
 
@@ -51,10 +52,14 @@ Just run it with -h switch.
 	  --replace-links       If your current posts link to other posts within your
 	                        Tumblr blog, this will attempt to replace them with
 	                        the correct Markdown file, using Hugo's relref.
+	  --all-post-types      By default, this script only converts Tumblr posts
+	                        marked as “text” type. You can use this argument
+	                        if you want to convert all other posts type.
+	  --keep-reblogs        By default, this script will skip all reblogs. You can
+	                        use this argument if you want to convert/keep reblogs.
 
 	This app downloads all your Tumblr content into Markdown files that are
 	suitable for processing with Hugo. Optionally also downloads the images hosted
 	on Tumblr and replaces their URLs with locally hosted versions.
-	ysoh-mn1:tumblr2markdown ysoh$
 
 You will need a Tumblr API key, which you can get by [registering a Tumblr application.](http://www.tumblr.com/oauth/apps) Get the value called called “OAuth Consumer Key”.
