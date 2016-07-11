@@ -166,7 +166,8 @@ def downloader(apiKey, host, postsPath, downloadImages, imagesPath, imagesUrlPat
 
 			if post['type'] == 'text':
 				title = post["title"]
-				body = markdown_maker.handle(post["body"]) # Convert HTML body to Markdown
+				#body = markdown_maker.handle(post["body"]) # Convert HTML body to Markdown
+				body =post["body"] # Convert HTML body to Markdown
 			# If type is not text and allPostTypes is False
 			elif allPostTypes is False:
 				continue

@@ -15,7 +15,10 @@ This was used in the migration of my blog from Tumblr to the current Hugo-based 
 * Supports all Tumblr posts type.
     * Video type support is limited. This script currently converts YouTube video links to the shortcode supported by Hugo, but other video links (e.g. Vimeo) are left in the original (HTML) format from Tumblr.
 * Ability to replace cross-links (other pages on the same Tumblr blog) with the newly created Markdown files. For example, if you have a post that links to http://yourblog.tumblr.com/post/best-post-ever, and you're trying to export the posts from http://yourblog.tumblr.com, specifying `--replace-links` will update this point to point to `best-post-ever.md` if it exists (as a result of this script).
-* If you want to download your images, this script will sort them into individual folders (by post/Markdown filename) by default.	
+* If you want to download your images, this script will sort them into individual folders (by post/Markdown filename) by default.
+
+## Known Bugs
+If your "text" posts contains videos embedded as iframe (YouTube, etc.), this script will end up removing that portion of code. This seems to be an issue with `html2text`. Will see if I can think/implement any workarounds.
 
 ## Prerequisites
 Requires [py2tumblr](https://github.com/tumblr/pytumblr) and [html2text](https://github.com/Alir3z4/html2text).
