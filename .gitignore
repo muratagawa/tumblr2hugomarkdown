@@ -2,4 +2,5 @@ run.sh
 .DS_Store
 _posts/
 output/
+output_main/
 .python-version
