@@ -1,6 +1,6 @@
 # What's this?
 
-- Forked from [Wysie/tumblr2hugomarkdown: Export all your Tumblr content to Hugo Markdown files with preserved original formatting\.](https://github.com/Wysie/tumblr2hugomarkdown)
+- Forked from [Wysie/tumblr2hugomarkdown](https://github.com/Wysie/tumblr2hugomarkdown)
 - Fixed to be compatible with Python 3.x
     - Just fixed library names and some commands
 
